@@ -1,14 +1,27 @@
 # Learning Rate Schedule Scaling Law Fitting
 
-This folder contains code for fitting several learning-rate-schedule scaling laws on loss curves.
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-The current workflow is:
+This repository reproduces and compares three published learning-rate-schedule (LRS) scaling law methods for LLM pre-training loss curves, and proposes our own method, as part of the course project *Topics in Deep Learning Theory (Spring 2026), Task 2: Predicting Loss Curves of LLM Pre-training*.
 
-1. Fit on the `cosine` learning rate schedule.
-2. Extrapolate to `wsd` and `811`.
-3. Save fitted parameters, metrics, predictions, and plots.
+## Methods
 
-The code does not assume a fixed total number of steps, peak learning rate, or minimum learning rate. These values are read from the data.
+| Script | Method | Reference |
+|--------|--------|-----------|
+| `fit_momentum_law.py` | Momentum Law (MTL) | [Tissue et al., 2024 — arXiv:2408.11029](https://arxiv.org/abs/2408.11029) |
+| `fit_multi_power_law.py` | Multi-Power Law (MPL) | [Luo et al., 2024 — arXiv:2503.12811](https://arxiv.org/abs/2503.12811) |
+| `fit_functional_scaling_law.py` | Functional Scaling Law (FSL, old-notebook route) | [Li et al., 2025 — arXiv:2509.19189](https://arxiv.org/abs/2509.19189) |
+| `fit_our_method.py` *(XXX)* | Our Method *(XXX)* | — |
+
+
+## Workflow
+
+1. Fit each method on the `cosine` LRS only.
+2. Extrapolate to `wsd` and `811` without re-fitting.
+3. Evaluate on all observed steps; the primary metric window is `step ≥ 2048` (post-warmup).
+4. Save fitted parameters, metrics, per-step predictions, and plots.
+
+The code infers the full step range, peak LR, and minimum LR directly from each curve's data columns — nothing is hard-coded.
 
 ## Python Requirements
 
@@ -17,16 +30,8 @@ Recommended Python version: Python 3.11 or newer.
 Required packages:
 
 ```bash
-pip install numpy pandas scipy torch matplotlib
+pip install numpy pandas scipy torch matplotlib pyarrow
 ```
-
-Optional but useful:
-
-```bash
-pip install pyarrow
-```
-
-`pyarrow` may be needed depending on how your pandas installation reads pickle/table data.
 
 GPU is optional. The PyTorch-based fits use CUDA if it is available, otherwise they fall back to CPU.
 
@@ -100,39 +105,6 @@ The main output folder is:
 fit_outputs/
 ```
 
-## Warmup Shift: `S_W`
-
-Some scaling laws use an intrinsic-time offset for a hidden warmup phase:
-
-```text
-S_W = peak_lr * s_w_prime
-```
-
-Each fitting script supports one command-line option:
-
-```bash
---sw-mode fit
---sw-mode fixed
-```
-
-Meaning:
-
-- `--sw-mode fit`: fit `s_w_prime` as a non-negative parameter.
-- `--sw-mode fixed`: fix `s_w_prime = 0`.
-
-If no option is given, the default is:
-
-```bash
---sw-mode fit
-```
-
-Outputs are saved separately:
-
-```text
-fit_outputs/<method>_with_sw/
-fit_outputs/<method>_no_sw/
-```
-
 ## File Overview
 
 ### `scaling_fit_utils.py`
@@ -152,12 +124,12 @@ This file does not fit a model by itself.
 
 ### `fit_momentum_law.py`
 
-Fits the Momentum Law, also related to the learning-rate-annealing scaling law.
+Fits the Momentum Law from [arXiv:2408.11029](https://arxiv.org/pdf/2408.11029).
 
 The fitted form is:
 
 ```text
-L_hat(t) = L0 + A * (S1(t) + S_W)^(-alpha) - C * S2(t)
+L_hat(t) = L0 + A * S1(t)^(-alpha) - C * S2(t)
 ```
 
 where:
@@ -185,39 +157,26 @@ Optimizer:
 - grid search over several initial values;
 - Huber loss on log residuals.
 
-Run without `S_W`:
-
-```bash
-python fit_momentum_law.py --sw-mode fixed
-```
-
-Run with fitted `S_W`:
+Run:
 
 ```bash
 python fit_momentum_law.py
 ```
 
-or:
-
-```bash
-python fit_momentum_law.py --sw-mode fit
-```
-
-Outputs:
+Output:
 
 ```text
 fit_outputs/momentum_law_no_sw/
-fit_outputs/momentum_law_with_sw/
 ```
 
 ### `fit_multi_power_law.py`
 
-Fits the Multi-Power Law (MPL).
+Fits the Multi-Power Law (MPL) from [arXiv:2503.12811](https://arxiv.org/pdf/2503.12811).
 
 The fitted form is:
 
 ```text
-L_hat(t) = L0 + A * (S1(t) + S_W)^(-alpha) - B * LD(t)
+L_hat(t) = L0 + A * S1(t)^(-alpha) - B * LD(t)
 ```
 
 The loss-drop term is:
@@ -238,8 +197,6 @@ Technical notes:
 
 - only positive LR drops are used;
 - the implementation precomputes an `MPLCache` tensor for speed;
-- the base power-law term can use `S_W`;
-- the drop-kernel span `S_k(t)` is not shifted by `S_W`;
 - parameters are constrained with smooth transforms.
 
 Optimizer:
@@ -248,34 +205,21 @@ Optimizer:
 - then PyTorch LBFGS;
 - Huber loss on log residuals.
 
-Run without `S_W`:
-
-```bash
-python fit_multi_power_law.py --sw-mode fixed
-```
-
-Run with fitted `S_W`:
+Run:
 
 ```bash
 python fit_multi_power_law.py
 ```
 
-or:
-
-```bash
-python fit_multi_power_law.py --sw-mode fit
-```
-
-Outputs:
+Output:
 
 ```text
 fit_outputs/multi_power_law_no_sw/
-fit_outputs/multi_power_law_with_sw/
 ```
 
 ### `fit_functional_scaling_law.py`
 
-Fits the older Functional Scaling Laws reproduction route based on an `expected_R` style formula.
+Fits the Functional Scaling Laws (FSL) from [arXiv:2509.19189](https://arxiv.org/pdf/2509.19189).
 
 This is not the final practical LLM ansatz from the FSL paper. It follows the older notebook-style decomposition:
 
@@ -290,7 +234,7 @@ R_hat(t) =
 The effective intrinsic time is:
 
 ```text
-T_eff(t) = T(t) + peak_lr * s_w_prime
+T_eff(t) = T(t)
 T(t) = integral_0^t lr(r) dr
 ```
 
@@ -309,29 +253,16 @@ Optimizer:
 - then PyTorch LBFGS;
 - Huber loss on log residuals.
 
-Run without `S_W`:
-
-```bash
-python fit_functional_scaling_law.py --sw-mode fixed
-```
-
-Run with fitted `S_W`:
+Run:
 
 ```bash
 python fit_functional_scaling_law.py
 ```
 
-or:
-
-```bash
-python fit_functional_scaling_law.py --sw-mode fit
-```
-
-Outputs:
+Output:
 
 ```text
 fit_outputs/functional_scaling_law_no_sw/
-fit_outputs/functional_scaling_law_with_sw/
 ```
 
 ## Output Files
@@ -372,17 +303,10 @@ It records:
 
 ## Recommended Run Order
 
-Run all six fits:
-
 ```bash
-python fit_momentum_law.py --sw-mode fixed
-python fit_momentum_law.py --sw-mode fit
-
-python fit_multi_power_law.py --sw-mode fixed
-python fit_multi_power_law.py --sw-mode fit
-
-python fit_functional_scaling_law.py --sw-mode fixed
-python fit_functional_scaling_law.py --sw-mode fit
+python fit_momentum_law.py
+python fit_multi_power_law.py
+python fit_functional_scaling_law.py
 ```
 
 Then compare:
@@ -400,4 +324,3 @@ fit_outputs/*/fit_curves.png
 - To use a different data file, update `DATA_PATH` in `scaling_fit_utils.py`.
 - Fitting is done on raw loss. Do not smooth the loss before fitting unless you intentionally want a different objective.
 - Plot smoothing is only for visualization.
-

@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import argparse
 import json
 import math
@@ -24,7 +22,7 @@ PRIMARY_EVAL_START = 2048
 
 def parse_sw_mode() -> bool:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--sw-mode", choices=["fit", "fixed"], default="fit")
+    parser.add_argument("--sw-mode", choices=["fit", "fixed"], default="fixed")
     return parser.parse_args().sw_mode == "fit"
 
 
