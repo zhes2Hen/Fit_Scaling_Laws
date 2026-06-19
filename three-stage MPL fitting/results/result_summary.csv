@@ -1,0 +1,4 @@
+method,training_data,cosine_post_rmse,wsd_stable_rmse,wsd_decay_rmse,wsd_post_rmse,811_stable_rmse,811_decay_rmse,811_post_rmse
+direct_mpl,cosine full,0.040679,0.053556,0.080926,0.060431,0.051164,0.076145,0.057401
+stage2_full_cosine_fixed_alpha,cosine full with alpha fixed,0.040467,0.040725,0.066329,0.047351,0.040743,0.059055,0.045267
+three_stage_mpl,cosine final 6% with L0/A/alpha fixed,0.040856,0.040725,0.041314,0.040851,0.040743,0.040504,0.040692
