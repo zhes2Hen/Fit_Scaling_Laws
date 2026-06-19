@@ -1,31 +1,42 @@
-from __future__ import annotations
-
 import argparse
-import json
 import math
-import sys
-from pathlib import Path
 
 import numpy as np
 import pandas as pd
 
 
-HERE = Path(__file__).resolve().parent
-REPO_ROOT = HERE.parent
-if str(REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(REPO_ROOT))
-
-import scaling_fit_utils as utils  # noqa: E402
-from fit_multi_power_law import (  # noqa: E402
+import scaling_fit_utils as utils
+from fit_multi_power_law import (
     FIT_START_STEP,
     FIT_STRIDE,
     predict_curve,
 )
-from staged_mpl import fit_base_only, fit_with_frozen_parameters  # noqa: E402
+from staged_multi_power_law import fit_base_only, fit_with_frozen_parameters
 
 
-CONFIG_DIR = HERE / "configs"
-OUTPUT_DIR = HERE / "outputs"
+OUTPUT_DIR = utils.OUTPUT_ROOT
+BASELINE_PARAMS = {
+    "L0": 2.8193588256835938,
+    "A": 1.4581011533737183,
+    "alpha": 1.3618971109390259,
+    "B": 449.1991882324219,
+    "C": 0.11661767959594727,
+    "beta": 0.23741869628429413,
+    "gamma": 0.40688633918762207,
+    "s_w_prime": 9.999998162868451e-09,
+    "fit_s_w_prime": True,
+}
+STAGE2_INITIAL_PARAMS = {
+    "L0": 2.723465919494629,
+    "A": 1.274954915046692,
+    "alpha": 0.9988600015640259,
+    "B": 448.7814636230469,
+    "C": 0.010856025852262974,
+    "beta": 0.21318809688091278,
+    "gamma": 0.5783498883247375,
+    "s_w_prime": 9.999998162868451e-09,
+    "fit_s_w_prime": True,
+}
 
 
 def parse_args() -> argparse.Namespace:
@@ -39,17 +50,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--stage1-lbfgs-steps", type=int, default=100)
     parser.add_argument("--adam-steps", type=int, default=2500)
     parser.add_argument("--lbfgs-steps", type=int, default=120)
-    parser.add_argument("--prefix", default="three_stage_mpl")
+    parser.add_argument("--prefix", default="staged_multi_power_law")
     return parser.parse_args()
-
-
-def load_json(path: Path) -> dict:
-    return json.loads(path.read_text(encoding="utf-8"))
-
-
-def save_json(path: Path, payload: object) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
 
 def rmse(curve, prediction: np.ndarray, start: int, end: int | None = None) -> float:
@@ -111,13 +113,10 @@ def main() -> None:
     if not 0.0 < args.stage3_fraction < 1.0:
         raise ValueError("--stage3-fraction must be in (0, 1).")
 
-    # Keep generated artifacts inside this subfolder.
-    utils.OUTPUT_ROOT = OUTPUT_DIR
-
     curves, diagnostics = utils.load_curves()
     cosine = curves["cosine"]
-    baseline = load_json(CONFIG_DIR / "baseline_params.json")
-    stage2_initial = load_json(CONFIG_DIR / "stage2_initial_params.json")
+    baseline = dict(BASELINE_PARAMS)
+    stage2_initial = dict(STAGE2_INITIAL_PARAMS)
 
     all_steps = cosine.fit_steps(FIT_START_STEP, args.fit_stride)
     stage1_boundary = int(
@@ -137,8 +136,8 @@ def main() -> None:
         "fit_s_w_prime": True,
     }
     stage1_method = f"{args.prefix}_stage1_base"
-    save_json(OUTPUT_DIR / stage1_method / "params.json", stage1_params)
-    save_json(
+    utils.save_json(OUTPUT_DIR / stage1_method / "params.json", stage1_params)
+    utils.save_json(
         OUTPUT_DIR / stage1_method / "fit_info.json",
         {
             "stage": 1,
@@ -208,7 +207,7 @@ def main() -> None:
     pd.DataFrame(summary).to_csv(
         OUTPUT_DIR / f"{args.prefix}_summary.csv", index=False
     )
-    save_json(OUTPUT_DIR / "data_diagnostics.json", diagnostics)
+    utils.save_json(OUTPUT_DIR / "data_diagnostics.json", diagnostics)
 
     print("Stage 1:", OUTPUT_DIR / stage1_method)
     print("Stage 2:", OUTPUT_DIR / stage2_method)

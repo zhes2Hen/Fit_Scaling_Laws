@@ -1,20 +1,11 @@
-from __future__ import annotations
-
 import copy
 import math
-import sys
-from pathlib import Path
 
 import numpy as np
 import torch
 
 
-HERE = Path(__file__).resolve().parent
-REPO_ROOT = HERE.parent
-if str(REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(REPO_ROOT))
-
-from fit_multi_power_law import (  # noqa: E402
+from fit_multi_power_law import (
     DEVICE,
     DTYPE,
     FIT_START_STEP,
@@ -22,7 +13,7 @@ from fit_multi_power_law import (  # noqa: E402
     inv_softplus,
     logit,
 )
-from scaling_fit_utils import HUBER_DELTA  # noqa: E402
+from scaling_fit_utils import HUBER_DELTA
 
 
 ALL_PARAMETERS = ("L0", "A", "alpha", "B", "C", "beta", "gamma", "s_w_prime")
