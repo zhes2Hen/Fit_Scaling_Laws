@@ -96,6 +96,8 @@ If more than one step is missing, the code raises an error.
 
 ## 1. Momentum Law
 
+Fits the Momentum Law from [arXiv:2408.11029](https://arxiv.org/abs/2408.11029).
+
 Run:
 
 ```bash
@@ -126,6 +128,8 @@ S2(t) = sum_{i=1}^t m_i
 Default `lambda = 0.999`. This script uses SciPy `L-BFGS-B` with several initial points.
 
 ## 2. Direct Multi-Power Law
+
+Fits the Multi-Power Law from [arXiv:2503.12811](https://arxiv.org/abs/2503.12811).
 
 Run:
 
@@ -158,6 +162,8 @@ G(x) = 1 - (1 + C * x)^(-beta)
 The code precomputes an `MPLCache` tensor for active LR drops. It uses Adam followed by LBFGS.
 
 ## 3. Functional Scaling Law
+
+Fits the Functional Scaling Law from [arXiv:2509.19189](https://arxiv.org/abs/2509.19189).
 
 Run:
 
